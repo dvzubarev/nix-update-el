@@ -6,6 +6,8 @@
 ;; Maintainer: John Wiegley <johnw@newartisans.com>
 ;; Created: 1 Feb 2018
 ;; Version: 1.0
+;; Package-Version: 20190124.1935
+;; Package-Commit: fc6c39c2da3fcfa62f4796816c084a6389c8b6e7
 ;; Package-Requires: ((emacs "25"))
 ;; Keywords: nix
 ;; URL: https://github.com/jwiegley/nix-update-el
@@ -43,7 +45,7 @@
                      (or "compileEmacsWikiFile"
                          (and "fetch"
                               (or "url"
-                                  "git"
+                                  "Git"
                                   (and "FromGit" (or "Hub" "Lab"))))))
                     (1+ space)
                     "{"))
@@ -82,6 +84,7 @@
                      (`"fetchFromGitHub"
                       (let ((owner (get-field "owner"))
                             (repo (get-field "repo"))
+                            (ref (or (get-field "ref") "master"))
                             (submodules
                              (let ((subs (get-field "fetchSubmodules")))
                                (and subs (string-equal subs "true")))))
@@ -94,8 +97,8 @@
                               (concat
                                "nix-prefetch-git --no-deepClone"
                                (if submodules " --fetch-submodules" "")
-                               " --quiet git://github.com/%s/%s.git %s")
-                              owner repo "refs/heads/master")
+                               " --quiet git://github.com/%s/%s.git refs/heads/%s")
+                              owner repo ref)
                              (current-buffer))
                             (message
                              "Fetching GitHub repository: %s/%s ...done"
@@ -121,16 +124,17 @@
                              owner repo))
                           (goto-char (point-min))
                           (json-read-object))))
-                     (`"fetchgit"
-                      (let ((url (get-field "url")))
+                     (`"fetchGit"
+                      (let ((url (get-field "url"))
+                            (ref (or (get-field "ref") "master")))
                         (with-temp-buffer
-                          (message "Fetching Git URL: %s ..." url)
+                          (message "Fetching Git URL: %s ref %s ..." url ref)
                           (let ((inhibit-redisplay t))
                             (shell-command
                              (format (concat
                                       "nix-prefetch-git --no-deepClone"
-                                      " --quiet '%s' %s")
-                                     url "refs/heads/master")
+                                      " --quiet '%s' refs/heads/%s")
+                                     url ref)
                              (current-buffer))
                             (message "Fetching Git URL: %s ...done" url))
                           (goto-char (point-min))
@@ -174,14 +178,14 @@
                                   (line-beginning-position)
                                   (line-end-position))))))))))
               (if (assq 'rev data)
-                  (set-field "rev" (alist-get 'rev data)))
+                  (set-field "rev" (format "\"%s\"" (alist-get 'rev data))))
               (if (assq 'date data)
                   (set-field "# date"
                              (let ((date (alist-get 'date data)))
                                (if (string-match "\\`\"\\(.+\\)\"\\'" date)
                                    (match-string 1 date)
                                  date))))
-              (set-field "sha256" (alist-get 'sha256 data)))))))))
+              (set-field "sha256" (format "\"%s\"" (alist-get 'sha256 data))))))))))
 
 (provide 'nix-update)
 
